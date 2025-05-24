@@ -13,14 +13,16 @@ import {motion,AnimatePresence} from 'framer-motion'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 type Props = {}
 type Input = z.infer<typeof createCourseSchema>
 
 const CreateCourseForm = (props: Props) => {
+  const router = useRouter();
   const {mutate:createChapters,isLoading} = useMutation({
     mutationFn: async ({title,units}:Input) => {
-      const response = await axios.post('/api/course/createChapters')
+      const response = await axios.post('/api/course/createChapters',{title,units})
       return response.data
     }
   })
@@ -38,11 +40,16 @@ const CreateCourseForm = (props: Props) => {
       return;
     }
     createChapters(data, {
-      onSuccess: () => {
+      onSuccess: ({course_id}) => {
+        toast.success('Chapters created successfully!');
+        form.reset();
+        router.push(`/create/${course_id}`);
+
        
       },
       onError: (error) => {
         console.error('Error creating chapters:', error);
+        toast.error('Failed to create chapters. Please try again later.');
       },
     });
   }
