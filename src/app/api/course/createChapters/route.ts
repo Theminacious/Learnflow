@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import{createCourseSchema} from "@/Validators/course";
 import { ZodError } from "zod";
 import { strict_output } from "@/lib/gpt";
+import { getUnsplashImages } from "@/lib/unsplash";
+import { prisma } from "@/lib/db";
 
 export async function POST(req: Request) {
    
@@ -27,8 +29,44 @@ export async function POST(req: Request) {
                 chapters:'an array of chapters and each chapter should have a youtueque_search_query and chapter_title key in the json object',
             }
         );
+
+        const imageSearchTerm= await strict_output(
+            "You are an AI capable of finding relevant image for a course ",
+            `please provide a relevant image search term for the title of the course about ${title}. This search term will be fed to the unsplash API so make sure it is a good seach term that will return good results`,
+            {
+              image_search_term: "a search term that can be used to find a relevant image for the course title",  
+            }
+        )
+
+        const course_image = await getUnsplashImages(imageSearchTerm.image_search_term);
+
+        const course = await prisma.course.create({
+            data: {
+                name: title,
+                Image: course_image,
+            },
+        });
+
+        for(const unit of output_units) {
+            const title= unit.title;
+            const prismaUnit = await prisma.unit.create({
+                data: {
+                    name : title,
+                    courseId: course.id,
+                },
+            });
+            await prisma.chapter.createMany({
+                data: unit.chapters.map(chapter => ({
+                    name: chapter.chapter_title,
+                    youtube_search_query: chapter.youtube_search_query,
+                    unitId: prismaUnit.id,
+                })),
+            });
+        }
         console.log(output_units);
-        return NextResponse.json(output_units);
+        return NextResponse.json({
+           course_id: course.id,
+        });
 
 
         

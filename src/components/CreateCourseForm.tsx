@@ -10,11 +10,20 @@ import { Separator } from './ui/separator'
 import { Button } from './ui/button'
 import { Plus, Trash } from 'lucide-react'
 import {motion,AnimatePresence} from 'framer-motion'
+import { useMutation } from '@tanstack/react-query'
+import axios from 'axios'
+import { toast } from 'sonner'
 
 type Props = {}
 type Input = z.infer<typeof createCourseSchema>
 
 const CreateCourseForm = (props: Props) => {
+  const {mutate:createChapters,isLoading} = useMutation({
+    mutationFn: async ({title,units}:Input) => {
+      const response = await axios.post('/api/course/createChapters')
+      return response.data
+    }
+  })
   const form = useForm<Input>({
     resolver: zodResolver(createCourseSchema),
     defaultValues: {
@@ -24,7 +33,18 @@ const CreateCourseForm = (props: Props) => {
   })
 
   function onSubmit(data: Input) {
-    console.log(data)
+    if(data.units.some(unit=>unit==='')) {
+      toast.error('Please fill all the units before submitting.')
+      return;
+    }
+    createChapters(data, {
+      onSuccess: () => {
+       
+      },
+      onError: (error) => {
+        console.error('Error creating chapters:', error);
+      },
+    });
   }
 
   return (
@@ -114,7 +134,7 @@ const CreateCourseForm = (props: Props) => {
             <Separator className='flex-[1]'/>
 
           </div>
-          <Button className='w-full mt-6 '
+          <Button disabled={isLoading} className='w-full mt-6 '
           type='submit'
           size='lg'>
             Lets Go
